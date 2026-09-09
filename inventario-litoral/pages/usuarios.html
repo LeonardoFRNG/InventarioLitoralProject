@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usuarios — Inventario Litoral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <div id="sidebar-container"></div>
+
+        <main class="main-content">
+            <div class="flex items-center justify-between mb-5 gap-3 flex-wrap">
+                <input type="text" class="surface-input" style="max-width:340px;" placeholder="Buscar usuario..." id="input-buscar">
+                <button class="btn-primary" id="btn-nuevo">+ Nuevo</button>
+            </div>
+
+            <div class="card">
+                <h2 class="text-base font-semibold mb-4">Usuarios</h2>
+                <div id="tabla-usuarios"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-container"></div>
+
+    <script src="../js/api/api.js"></script>
+    <script src="../js/utils/ui.js"></script>
+    <script src="../js/validators/validators.js"></script>
+    <script src="../js/services/auth-service.js"></script>
+    <script src="../js/services/entity-services.js"></script>
+    <script src="../components/sidebar.js"></script>
+    <script>
+        let usuarioActual = null;
+        let roles = [];
+
+        (async () => {
+            usuarioActual = await AuthService.requireSession();
+            if (!usuarioActual) return;
+
+            // Este módulo es exclusivo de Administrador (el backend también lo exige)
+            if (usuarioActual.rol !== 'Administrador') {
+                document.querySelector('main').innerHTML = `
+                    <div class="card empty-state">No tienes permiso para acceder a la gestión de usuarios.</div>`;
+            }
+
+            document.getElementById('sidebar-container').outerHTML = renderSidebar('usuarios', usuarioActual);
+            activarLogout();
+
+            const resRoles = await UsuariosService.roles();
+            roles = resRoles.data;
+
+            await cargarUsuarios();
+
+            document.getElementById('btn-nuevo').addEventListener('click', () => abrirModal());
+            let temporizador;
+            document.getElementById('input-buscar').addEventListener('input', (e) => {
+                clearTimeout(temporizador);
+                temporizador = setTimeout(() => cargarUsuarios(e.target.value), 300);
+            });
+        })();
+
+        async function cargarUsuarios(busqueda = '') {
+            const contenedor = document.getElementById('tabla-usuarios');
+            contenedor.innerHTML = `<div class="flex justify-center py-8"><span class="spinner" style="border-top-color:#a78bfa;"></span></div>`;
+            try {
+                const res = await UsuariosService.listar(busqueda);
+                pintarTabla(res.data);
+            } catch (err) {
+                contenedor.innerHTML = `<div class="empty-state">${Ui.escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function pintarTabla(usuarios) {
+            const contenedor = document.getElementById('tabla-usuarios');
+            const miId = usuarioActual?.id ?? -1;
+            if (usuarios.length === 0) {
+                contenedor.innerHTML = `<div class="empty-state">No se encontraron usuarios.</div>`;
+                return;
+            }
+            contenedor.innerHTML = `
+                <table class="data-table">
+                    <thead><tr>
+                        <th>ID</th><th>Nombre</th><th>Email</th><th>Correo recuperación</th>
+                        <th>Rol</th><th>Estado</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                        ${usuarios.map(u => `
+                            <tr>
+                                <td>${u.id}</td>
+                                <td>${Ui.escapeHtml(u.nombre)}</td>
+                                <td>${Ui.escapeHtml(u.email)}</td>
+                                <td>${Ui.escapeHtml(u.email_recuperacion || '—')}</td>
+                                <td>${Ui.escapeHtml(u.rol)}</td>
+                                <td>${u.activo == 1
+                                    ? '<span class="badge badge-green">Activo</span>'
+                                    : '<span class="badge badge-gray">Inactivo</span>'}</td>
+                                <td class="whitespace-nowrap">
+                                    <button class="icon-btn" title="Editar" onclick='abrirModal(${JSON.stringify(u)})'>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
+                                    ${(u.id !== miId && u.activo == 1) ? `<button class="icon-btn" title="Desactivar" onclick="eliminarUsuario(${u.id}, '${Ui.escapeHtml(u.nombre)}')">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                                    </button>` : ''}
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        function abrirModal(usuario = null) {
+            const opcionesRol = roles.map(r =>
+                `<option value="${r.id}" ${usuario && usuario.rol_id === r.id ? 'selected' : ''}>${r.nombre}</option>`).join('');
+
+            document.getElementById('modal-container').innerHTML = `
+                <div class="modal-overlay">
+                    <div class="modal-box">
+                        <h3 class="text-lg font-semibold mb-4">${usuario ? 'Editar usuario' : 'Nuevo usuario'}</h3>
+                        <form id="form-usuario" novalidate>
+                            <div class="mb-3">
+                                <label class="field-label">Nombre completo</label>
+                                <input id="us-nombre" class="dark-input" value="${usuario ? Ui.escapeHtml(usuario.nombre) : ''}">
+                                <p class="text-xs mt-1" style="color:var(--color-danger)" id="us-nombre-error"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Email</label>
+                                <input id="us-email" type="email" class="dark-input" value="${usuario ? Ui.escapeHtml(usuario.email) : ''}">
+                                <p class="text-xs mt-1" style="color:var(--color-danger)" id="us-email-error"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Correo de recuperación (opcional)</label>
+                                <input id="us-email-recuperacion" type="email" class="dark-input" value="${usuario && usuario.email_recuperacion ? Ui.escapeHtml(usuario.email_recuperacion) : ''}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Rol</label>
+                                <select id="us-rol" class="dark-input">${opcionesRol}</select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">${usuario ? 'Nueva contraseña (opcional)' : 'Contraseña'}</label>
+                                <input id="us-password" type="password" class="dark-input" placeholder="${usuario ? 'Dejar en blanco para no cambiarla' : 'Mínimo 8 caracteres'}">
+                                <p class="text-xs mt-1" style="color:var(--color-danger)" id="us-password-error"></p>
+                            </div>
+                            <p class="text-sm mt-1" style="color:var(--color-danger)" id="form-usuario-error"></p>
+                            <div class="flex justify-end gap-2 mt-5">
+                                <button type="button" class="btn-ghost" onclick="cerrarModal()">Cancelar</button>
+                                <button type="submit" class="btn-primary" id="btn-guardar-usuario">${usuario ? 'Guardar cambios' : 'Crear usuario'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>`;
+
+            document.getElementById('form-usuario').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('form-usuario-error').textContent = '';
+
+                const reglas = {
+                    'us-nombre': [Validators.requerido],
+                    'us-email': [Validators.requerido, Validators.email],
+                };
+                if (!usuario) reglas['us-password'] = [Validators.requerido, (v) => Validators.minLength(v, 8)];
+                if (!Validators.validarFormulario(reglas)) return;
+
+                const password = document.getElementById('us-password').value;
+                if (usuario && password && password.length < 8) {
+                    document.getElementById('us-password-error').textContent = 'Debe tener al menos 8 caracteres.';
+                    return;
+                }
+
+                const payload = {
+                    id: usuario?.id,
+                    nombre: document.getElementById('us-nombre').value.trim(),
+                    email: document.getElementById('us-email').value.trim(),
+                    email_recuperacion: document.getElementById('us-email-recuperacion').value.trim(),
+                    rol_id: parseInt(document.getElementById('us-rol').value),
+                    password: password || undefined,
+                };
+
+                const btn = document.getElementById('btn-guardar-usuario');
+                Ui.setLoading(btn, true);
+                try {
+                    if (usuario) {
+                        await UsuariosService.actualizar(payload);
+                        Ui.toast('Usuario actualizado correctamente.');
+                    } else {
+                        await UsuariosService.crear(payload);
+                        Ui.toast('Usuario creado correctamente.');
+                    }
+                    cerrarModal();
+                    cargarUsuarios(document.getElementById('input-buscar').value);
+                } catch (err) {
+                    document.getElementById('form-usuario-error').textContent =
+                        err.errors && err.errors.length ? err.errors.join(' ') : err.message;
+                } finally {
+                    Ui.setLoading(btn, false, usuario ? 'Guardar cambios' : 'Crear usuario');
+                }
+            });
+        }
+
+        function cerrarModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+        async function eliminarUsuario(id, nombre) {
+            const ok = await Ui.confirmar(`¿Desactivar a "${nombre}"?`, 'El usuario no podrá iniciar sesión, pero su historial de acciones se conservará.');
+            if (!ok) return;
+            try {
+                const res = await UsuariosService.eliminar(id);
+                Ui.toast(res.message);
+                cargarUsuarios(document.getElementById('input-buscar').value);
+            } catch (err) {
+                Ui.toast(err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

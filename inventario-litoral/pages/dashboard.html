@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Inventario Litoral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <div id="sidebar-container"></div>
+
+        <main class="main-content">
+            <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+                <h1 class="text-xl font-bold">Dashboard</h1>
+                <input type="text" class="surface-input" style="max-width:340px;" placeholder="Buscar por código o nombre..." id="input-buscar-rapido">
+            </div>
+
+            <div class="grid gap-5" style="grid-template-columns: 1fr; " id="dashboard-grid">
+                <div class="grid gap-5" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:1rem;" id="kpi-cards"></div>
+
+                <div style="display:grid; grid-template-columns: 320px 1fr; gap:1.25rem;" id="dashboard-lower">
+                    <div class="card">
+                        <h2 class="text-base font-semibold mb-4">Distribución por Estado</h2>
+                        <div id="donut-container" class="flex flex-col items-center"></div>
+                        <div id="donut-legend" class="mt-4 flex flex-col gap-2 text-sm"></div>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-base font-semibold mb-4">Últimos Elementos</h2>
+                        <div id="tabla-ultimos"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/api/api.js"></script>
+    <script src="../js/utils/ui.js"></script>
+    <script src="../js/services/auth-service.js"></script>
+    <script src="../components/sidebar.js"></script>
+    <script>
+        (async () => {
+            const usuario = await AuthService.requireSession();
+            if (!usuario) return;
+
+            document.getElementById('sidebar-container').outerHTML = renderSidebar('dashboard', usuario);
+            activarLogout();
+
+            try {
+                const res = await Api.get('DashboardController.php');
+                pintarDashboard(res.data);
+            } catch (err) {
+                Ui.toast(err.message, 'error');
+            }
+
+            document.getElementById('input-buscar-rapido').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                    window.location.href = `equipos.html?busqueda=${encodeURIComponent(e.target.value.trim())}`;
+                }
+            });
+        })();
+
+        function pintarDashboard(data) {
+            // --- KPI cards ---
+            const kpis = [
+                { label: 'Total de equipos', valor: data.total_equipos, color: '#3b82f6' },
+                { label: 'Mantenimientos activos', valor: data.mantenimientos_activos, color: '#eab308' },
+                { label: 'Asignaciones activas', valor: data.asignaciones_activas, color: '#22c55e' },
+                { label: 'Estados registrados', valor: data.distribucion_por_estado.length, color: '#a78bfa' },
+            ];
+            document.getElementById('kpi-cards').innerHTML = kpis.map(k => `
+                <div class="card" style="padding:1.1rem 1.25rem;">
+                    <div class="text-xs" style="color:var(--color-text-muted)">${k.label}</div>
+                    <div class="text-2xl font-bold mt-1" style="color:${k.color}">${k.valor}</div>
+                </div>`).join('');
+
+            // --- Donut chart (SVG puro, sin librerías) ---
+            const total = data.total_equipos || 1;
+            let acumulado = 0;
+            const radio = 70, circunferencia = 2 * Math.PI * radio;
+            const coloresHex = { green: '#22c55e', yellow: '#eab308', orange: '#f97316', red: '#ef4444', gray: '#6b7280' };
+
+            const segmentos = data.distribucion_por_estado
+                .filter(e => e.total > 0)
+                .map(e => {
+                    const frac = e.total / total;
+                    const dash = frac * circunferencia;
+                    const offset = circunferencia - (acumulado * circunferencia);
+                    acumulado += frac;
+                    return `<circle cx="90" cy="90" r="${radio}" fill="none" stroke="${coloresHex[e.color] || '#6b7280'}"
+                                stroke-width="20" stroke-dasharray="${dash} ${circunferencia - dash}"
+                                stroke-dashoffset="${offset}" transform="rotate(-90 90 90)"/>`;
+                }).join('');
+
+            document.getElementById('donut-container').innerHTML = `
+                <svg width="180" height="180" viewBox="0 0 180 180">
+                    ${segmentos || `<circle cx="90" cy="90" r="${radio}" fill="none" stroke="#3f3a55" stroke-width="20"/>`}
+                    <text x="90" y="95" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">${data.total_equipos}</text>
+                </svg>`;
+
+            document.getElementById('donut-legend').innerHTML = data.distribucion_por_estado.map(e => `
+                <div class="flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${coloresHex[e.color] || '#6b7280'};display:inline-block;"></span>
+                        ${e.estado}
+                    </span>
+                    <span style="color:var(--color-text-muted)">${e.total} (${e.porcentaje}%)</span>
+                </div>`).join('');
+
+            // --- Tabla últimos elementos ---
+            const contenedor = document.getElementById('tabla-ultimos');
+            if (data.ultimos_elementos.length === 0) {
+                contenedor.innerHTML = `<div class="empty-state">No hay equipos registrados todavía.<br>Registra el primer equipo para comenzar a gestionar el inventario.</div>`;
+                return;
+            }
+            contenedor.innerHTML = `
+                <table class="data-table">
+                    <thead><tr><th>Código</th><th>Nombre</th><th>Estado</th><th>Categoría</th><th>Ubicación</th></tr></thead>
+                    <tbody>
+                        ${data.ultimos_elementos.map(el => `
+                            <tr>
+                                <td>${Ui.escapeHtml(el.codigo_inventario)}</td>
+                                <td>${Ui.escapeHtml(el.nombre)}</td>
+                                <td><span class="${Ui.badgeClass(el.estado_color)}">${Ui.escapeHtml(el.estado)}</span></td>
+                                <td>${Ui.escapeHtml(el.categoria || '—')}</td>
+                                <td>${Ui.escapeHtml(el.ubicacion || '—')}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+    </script>
+</body>
+</html>
