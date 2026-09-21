@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asignaciones — Inventario Litoral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/utilities.css">
+</head>
+<body>
+    <div class="app-shell">
+        <div id="sidebar-container"></div>
+        <main class="main-content">
+            <div class="flex items-center justify-between mb-5 gap-3 flex-wrap">
+                <h1 class="text-xl font-bold">Asignaciones</h1>
+                <button class="btn-primary" id="btn-nueva" data-role-only="Administrador,Tecnico">+ Nueva asignación</button>
+            </div>
+            <div class="card"><div class="table-scroll"><div id="tabla-asignaciones"></div></div></div>
+        </main>
+    </div>
+    <div id="modal-container"></div>
+
+    <script src="../js/api/api.js"></script>
+    <script src="../js/utils/ui.js"></script>
+    <script src="../js/validators/validators.js"></script>
+    <script src="../js/services/auth-service.js"></script>
+    <script src="../js/services/entity-services.js"></script>
+    <script src="../components/logo.js"></script>
+    <script src="../components/sidebar.js"></script>
+    <script>
+        let usuarioActual = null;
+        let equiposDisponibles = [];
+        let usuariosDisponibles = [];
+
+        (async () => {
+            usuarioActual = await AuthService.requireSession();
+            if (!usuarioActual) return;
+
+            document.getElementById('sidebar-container').outerHTML = renderSidebar('asignaciones', usuarioActual);
+            activarLogout();
+            activarMenuMovil();
+            AuthService.aplicarVisibilidadPorRol(usuarioActual);
+
+            await cargarAsignaciones();
+            document.getElementById('btn-nueva').addEventListener('click', abrirModal);
+        })();
+
+        async function cargarAsignaciones() {
+            const contenedor = document.getElementById('tabla-asignaciones');
+            contenedor.innerHTML = `<div class="flex justify-center py-8"><span class="spinner" style="border-top-color:#a78bfa;"></span></div>`;
+            try {
+                const res = await AsignacionesService.listar();
+                pintarTabla(res.data);
+            } catch (err) {
+                contenedor.innerHTML = `<div class="empty-state">${Ui.escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function pintarTabla(asignaciones) {
+            const contenedor = document.getElementById('tabla-asignaciones');
+            const puedeGestionar = ['Administrador', 'Tecnico'].includes(usuarioActual.rol);
+
+            if (asignaciones.length === 0) {
+                contenedor.innerHTML = `<div class="empty-state">No hay asignaciones registradas todavía.</div>`;
+                return;
+            }
+            contenedor.innerHTML = `
+                <table class="data-table">
+                    <thead><tr>
+                        <th>Equipo</th><th>Responsable</th><th>Fecha asignación</th>
+                        <th>Fecha devolución</th><th>Estado</th><th>Asignado por</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                        ${asignaciones.map(a => `
+                            <tr>
+                                <td>${Ui.escapeHtml(a.codigo_inventario)} — ${Ui.escapeHtml(a.equipo_nombre)}</td>
+                                <td>${Ui.escapeHtml(a.usuario_nombre)}</td>
+                                <td>${Ui.formatFecha(a.fecha_asignacion)}</td>
+                                <td>${a.fecha_devolucion ? Ui.formatFecha(a.fecha_devolucion) : '—'}</td>
+                                <td>${a.activa == 1 ? '<span class="badge badge-green">Activa</span>' : '<span class="badge badge-gray">Cerrada</span>'}</td>
+                                <td>${Ui.escapeHtml(a.asignado_por_nombre || '—')}</td>
+                                <td>${(a.activa == 1 && puedeGestionar) ? `<button class="btn-ghost" style="padding:0.35rem 0.8rem;font-size:0.8rem;" onclick="devolver(${a.id})">Registrar devolución</button>` : ''}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        async function abrirModal() {
+            if (equiposDisponibles.length === 0) {
+                const res = await EquiposService.listar({ por_pagina: 100 });
+                equiposDisponibles = res.data.equipos;
+            }
+            if (usuariosDisponibles.length === 0) {
+                const res = await UsuariosService.simple();
+                usuariosDisponibles = res.data;
+            }
+
+            document.getElementById('modal-container').innerHTML = `
+                <div class="modal-overlay">
+                    <div class="modal-box">
+                        <h3 class="text-lg font-semibold mb-4">Nueva asignación</h3>
+                        <form id="form-asignacion" novalidate>
+                            <div class="mb-3">
+                                <label class="field-label">Equipo</label>
+                                <select id="as-equipo" class="dark-input">
+                                    ${equiposDisponibles.map(e => `<option value="${e.id}">${Ui.escapeHtml(e.codigo_inventario)} — ${Ui.escapeHtml(e.nombre)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Responsable</label>
+                                <select id="as-usuario" class="dark-input">
+                                    ${usuariosDisponibles.map(u => `<option value="${u.id}">${Ui.escapeHtml(u.nombre)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Fecha de asignación</label>
+                                <input id="as-fecha" type="date" class="dark-input" value="${new Date().toISOString().slice(0,10)}">
+                                <p class="text-xs mt-1" style="color:var(--color-danger)" id="as-fecha-error"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Observaciones (opcional)</label>
+                                <textarea id="as-observaciones" class="dark-input" rows="2"></textarea>
+                            </div>
+                            <p class="text-sm mt-1" style="color:var(--color-danger)" id="form-asignacion-error"></p>
+                            <div class="flex justify-end gap-2 mt-5">
+                                <button type="button" class="btn-ghost" onclick="cerrarModal()">Cancelar</button>
+                                <button type="submit" class="btn-primary" id="btn-guardar-asignacion">Registrar asignación</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>`;
+
+            document.getElementById('form-asignacion').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('form-asignacion-error').textContent = '';
+                if (!Validators.validarFormulario({ 'as-fecha': [Validators.requerido] })) return;
+
+                const payload = {
+                    equipo_id: document.getElementById('as-equipo').value,
+                    usuario_id: document.getElementById('as-usuario').value,
+                    fecha_asignacion: document.getElementById('as-fecha').value,
+                    observaciones: document.getElementById('as-observaciones').value.trim(),
+                };
+                const btn = document.getElementById('btn-guardar-asignacion');
+                Ui.setLoading(btn, true);
+                try {
+                    await AsignacionesService.crear(payload);
+                    Ui.toast('Asignación registrada correctamente.');
+                    cerrarModal();
+                    cargarAsignaciones();
+                } catch (err) {
+                    document.getElementById('form-asignacion-error').textContent =
+                        err.errors && err.errors.length ? err.errors.join(' ') : err.message;
+                } finally {
+                    Ui.setLoading(btn, false, 'Registrar asignación');
+                }
+            });
+        }
+
+        function cerrarModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+        async function devolver(id) {
+            const ok = await Ui.confirmar('¿Registrar devolución?', 'El equipo quedará sin responsable asignado activo.');
+            if (!ok) return;
+            try {
+                const res = await AsignacionesService.devolver(id);
+                Ui.toast(res.message);
+                cargarAsignaciones();
+            } catch (err) {
+                Ui.toast(err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

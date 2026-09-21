@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi perfil — Inventario Litoral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/utilities.css">
+</head>
+<body>
+    <div class="app-shell">
+        <div id="sidebar-container"></div>
+        <main class="main-content">
+            <h1 class="text-xl font-bold mb-5">Mi perfil</h1>
+
+            <div class="card" style="max-width:480px;">
+                <form id="form-perfil" novalidate>
+                    <div class="mb-3">
+                        <label class="field-label">Nombre completo</label>
+                        <input id="perfil-nombre" class="dark-input">
+                        <p class="text-xs mt-1" style="color:var(--color-danger)" id="perfil-nombre-error"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="field-label">Email</label>
+                        <input id="perfil-email" class="dark-input" disabled style="opacity:0.6;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="field-label">Rol</label>
+                        <input id="perfil-rol" class="dark-input" disabled style="opacity:0.6;">
+                    </div>
+                    <hr style="border-color:var(--color-border); margin: 1.25rem 0;">
+                    <div class="mb-3">
+                        <label class="field-label">Contraseña actual (requerida para guardar cambios)</label>
+                        <input type="password" id="perfil-password-actual" class="dark-input">
+                        <p class="text-xs mt-1" style="color:var(--color-danger)" id="perfil-password-actual-error"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="field-label">Nueva contraseña (opcional)</label>
+                        <input type="password" id="perfil-password-nueva" class="dark-input" placeholder="Dejar en blanco para no cambiarla">
+                        <p class="text-xs mt-1" style="color:var(--color-danger)" id="perfil-password-nueva-error"></p>
+                    </div>
+                    <p class="text-sm mt-1" style="color:var(--color-danger)" id="form-perfil-error"></p>
+                    <button type="submit" class="btn-primary mt-2" id="btn-guardar-perfil">Guardar cambios</button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/api/api.js"></script>
+    <script src="../js/utils/ui.js"></script>
+    <script src="../js/validators/validators.js"></script>
+    <script src="../js/services/auth-service.js"></script>
+    <script src="../components/logo.js"></script>
+    <script src="../components/sidebar.js"></script>
+    <script>
+        (async () => {
+            const usuario = await AuthService.requireSession();
+            if (!usuario) return;
+
+            document.getElementById('sidebar-container').outerHTML = renderSidebar('perfil', usuario);
+            activarLogout();
+            activarMenuMovil();
+
+            document.getElementById('perfil-nombre').value = usuario.nombre;
+            document.getElementById('perfil-rol').value = usuario.rol;
+            // El email no viene en /me por privacidad de sesión ligera; se solicita al backend si se requiere mostrarlo.
+            document.getElementById('perfil-email').value = '(ver en Usuarios)';
+
+            document.getElementById('form-perfil').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                document.getElementById('form-perfil-error').textContent = '';
+
+                const esValido = Validators.validarFormulario({
+                    'perfil-nombre': [Validators.requerido],
+                    'perfil-password-actual': [Validators.requerido],
+                });
+                if (!esValido) return;
+
+                const nuevaPass = document.getElementById('perfil-password-nueva').value;
+                if (nuevaPass && nuevaPass.length < 8) {
+                    document.getElementById('perfil-password-nueva-error').textContent = 'Debe tener al menos 8 caracteres.';
+                    return;
+                }
+
+                const btn = document.getElementById('btn-guardar-perfil');
+                Ui.setLoading(btn, true);
+                try {
+                    await Api.put('AuthController.php?action=actualizar_perfil', {
+                        nombre: document.getElementById('perfil-nombre').value.trim(),
+                        password_actual: document.getElementById('perfil-password-actual').value,
+                        password_nueva: nuevaPass,
+                    });
+                    Ui.toast('Perfil actualizado correctamente.');
+                    document.getElementById('perfil-password-actual').value = '';
+                    document.getElementById('perfil-password-nueva').value = '';
+                } catch (err) {
+                    document.getElementById('form-perfil-error').textContent = err.message;
+                } finally {
+                    Ui.setLoading(btn, false, 'Guardar cambios');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

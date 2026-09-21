@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Categorías — Inventario Litoral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/utilities.css">
+</head>
+<body>
+    <div class="app-shell">
+        <div id="sidebar-container"></div>
+        <main class="main-content">
+            <div class="flex items-center justify-between mb-5 gap-3 flex-wrap">
+                <h1 class="text-xl font-bold" id="titulo-pagina">Categorías</h1>
+                <button class="btn-primary" id="btn-nuevo-catalogo">+ Nueva categoría</button>
+            </div>
+            <div class="card"><div class="table-scroll"><div id="tabla-catalogo"></div></div></div>
+        </main>
+    </div>
+    <div id="modal-container"></div>
+
+    <script src="../js/api/api.js"></script>
+    <script src="../js/utils/ui.js"></script>
+    <script src="../js/validators/validators.js"></script>
+    <script src="../js/services/auth-service.js"></script>
+    <script src="../js/services/entity-services.js"></script>
+    <script src="../components/logo.js"></script>
+    <script src="../components/sidebar.js"></script>
+    <script src="../js/controllers/catalogo-controller.js"></script>
+    <script>
+        iniciarPaginaCatalogo({
+            tabla: 'categorias',
+            tituloSingular: 'Categoría',
+            tituloPlural: 'Categorías',
+            paginaSidebar: 'categorias',
+            campos: [
+                { key: 'nombre', label: 'Nombre', required: true },
+                { key: 'descripcion', label: 'Descripción', required: false },
+            ],
+        });
+    </script>
+</body>
+</html>

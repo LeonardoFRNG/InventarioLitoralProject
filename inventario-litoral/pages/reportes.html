@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reportes — Inventario Litoral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/utilities.css">
+</head>
+<body>
+    <div class="app-shell">
+        <div id="sidebar-container"></div>
+        <main class="main-content">
+            <h1 class="text-xl font-bold mb-5">Reportes</h1>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.25rem;">
+
+                <div class="card">
+                    <h2 class="text-base font-semibold mb-1">Inventario general</h2>
+                    <p class="text-sm mb-4" style="color:var(--color-text-muted)">Listado completo de equipos con filtros por estado, categoría y ubicación.</p>
+
+                    <div class="grid gap-3 mb-4" style="grid-template-columns:1fr 1fr;">
+                        <div>
+                            <label class="field-label">Estado</label>
+                            <select id="rep-estado" class="dark-input"><option value="">Todos</option></select>
+                        </div>
+                        <div>
+                            <label class="field-label">Categoría</label>
+                            <select id="rep-categoria" class="dark-input"><option value="">Todas</option></select>
+                        </div>
+                        <div>
+                            <label class="field-label">Ubicación</label>
+                            <select id="rep-ubicacion" class="dark-input"><option value="">Todas</option></select>
+                        </div>
+                        <div>
+                            <label class="field-label">Responsable</label>
+                            <select id="rep-responsable" class="dark-input"><option value="">Todos</option></select>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button class="btn-primary" onclick="exportarInventario('excel')">Descargar Excel</button>
+                        <button class="btn-ghost" onclick="exportarInventario('pdf')">Ver / Imprimir PDF</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-base font-semibold mb-1">Mantenimientos</h2>
+                    <p class="text-sm mb-4" style="color:var(--color-text-muted)">Historial de mantenimientos preventivos y correctivos por rango de fecha.</p>
+
+                    <div class="grid gap-3 mb-4" style="grid-template-columns:1fr 1fr;">
+                        <div>
+                            <label class="field-label">Desde</label>
+                            <input type="date" id="mant-desde" class="dark-input">
+                        </div>
+                        <div>
+                            <label class="field-label">Hasta</label>
+                            <input type="date" id="mant-hasta" class="dark-input">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button class="btn-primary" onclick="exportarMantenimientos('excel')">Descargar Excel</button>
+                        <button class="btn-ghost" onclick="exportarMantenimientos('pdf')">Ver / Imprimir PDF</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-base font-semibold mb-1">Historial / Trazabilidad</h2>
+                    <p class="text-sm mb-4" style="color:var(--color-text-muted)">Todos los movimientos registrados en el sistema (creación, asignaciones, cambios de estado).</p>
+                    <div class="flex gap-2 mt-1">
+                        <button class="btn-primary" onclick="exportarHistorial('excel')">Descargar Excel</button>
+                        <button class="btn-ghost" onclick="exportarHistorial('pdf')">Ver / Imprimir PDF</button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/api/api.js"></script>
+    <script src="../js/utils/ui.js"></script>
+    <script src="../js/services/auth-service.js"></script>
+    <script src="../js/services/entity-services.js"></script>
+    <script src="../components/logo.js"></script>
+    <script src="../components/sidebar.js"></script>
+    <script>
+        (async () => {
+            const usuario = await AuthService.requireSession();
+            if (!usuario) return;
+
+            document.getElementById('sidebar-container').outerHTML = renderSidebar('reportes', usuario);
+            activarLogout();
+            activarMenuMovil();
+
+            const [estados, categorias, ubicaciones, responsables] = await Promise.all([
+                CatalogoService.listar('estados'),
+                CatalogoService.listar('categorias'),
+                CatalogoService.listar('ubicaciones'),
+                UsuariosService.simple().catch(() => ({ data: [] })), // Consulta no tiene acceso; se degrada con gracia
+            ]);
+            llenarSelect('rep-estado', estados.data);
+            llenarSelect('rep-categoria', categorias.data);
+            llenarSelect('rep-ubicacion', ubicaciones.data);
+            llenarSelect('rep-responsable', responsables.data);
+        })();
+
+        function llenarSelect(id, lista) {
+            document.getElementById(id).insertAdjacentHTML('beforeend',
+                lista.map(item => `<option value="${item.id}">${Ui.escapeHtml(item.nombre)}</option>`).join(''));
+        }
+
+        function construirUrl(action, formato, filtrosExtra = {}) {
+            const params = new URLSearchParams({ action, formato, ...filtrosExtra });
+            return `/backend/controllers/ReportesController.php?${params.toString()}`;
+        }
+
+        function exportarInventario(formato) {
+            const filtros = {
+                estado_id: document.getElementById('rep-estado').value,
+                categoria_id: document.getElementById('rep-categoria').value,
+                ubicacion_id: document.getElementById('rep-ubicacion').value,
+                responsable_id: document.getElementById('rep-responsable').value,
+            };
+            Object.keys(filtros).forEach(k => !filtros[k] && delete filtros[k]);
+            abrir(construirUrl('inventario', formato, filtros), formato);
+        }
+
+        function exportarMantenimientos(formato) {
+            const filtros = {};
+            const desde = document.getElementById('mant-desde').value;
+            const hasta = document.getElementById('mant-hasta').value;
+            if (desde) filtros.fecha_desde = desde;
+            if (hasta) filtros.fecha_hasta = hasta;
+            abrir(construirUrl('mantenimientos', formato, filtros), formato);
+        }
+
+        function exportarHistorial(formato) {
+            abrir(construirUrl('historial', formato), formato);
+        }
+
+        function abrir(url, formato) {
+            if (formato === 'excel') {
+                // Descarga directa del archivo
+                window.location.href = url;
+            } else {
+                // El PDF se abre como HTML imprimible en una nueva pestaña
+                window.open(url, '_blank');
+            }
+        }
+    </script>
+</body>
+</html>

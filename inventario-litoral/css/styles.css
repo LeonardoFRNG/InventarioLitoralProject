@@ -1,0 +1,301 @@
+/* =====================================================================
+   INVENTARIO LITORAL — DESIGN SYSTEM
+   Tokens extraídos de las capturas de referencia: fondo morado→negro,
+   sidebar con degradado, cards oscuras, botones azules, badges de estado.
+   ===================================================================== */
+
+:root {
+    /* Paleta base */
+    --color-bg-deep:      #0d0a17;
+    --color-bg-purple:    #2e1065;
+    --color-bg-purple-2:  #4c1d95;
+    --color-surface:      #171426;
+    --color-surface-2:    #1e1b30;
+    --color-border:       #2f2b45;
+
+    --color-text:         #f5f3ff;
+    --color-text-muted:   #a3a0b8;
+
+    --color-primary:      #3b82f6;
+    --color-primary-dark: #2563eb;
+
+    --color-success:      #22c55e;
+    --color-warning:      #eab308;
+    --color-danger:       #ef4444;
+    --color-info:         #f97316;
+
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
+    --radius-full: 9999px;
+
+    --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Poppins', 'Inter', system-ui, sans-serif;
+    background:
+        radial-gradient(circle at 20% 0%, var(--color-bg-purple) 0%, transparent 45%),
+        radial-gradient(circle at 100% 100%, var(--color-bg-purple-2) 0%, transparent 40%),
+        var(--color-bg-deep);
+    background-attachment: fixed;
+    color: var(--color-text);
+    min-height: 100vh;
+}
+
+/* ---------- Layout ---------- */
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, #3b0764 0%, #1b0730 70%, #0d0a17 100%);
+    padding: 1.75rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.sidebar-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; padding: 0 0.4rem; }
+.sidebar-logo svg { width: 28px; height: 28px; }
+.sidebar-brand { font-weight: 700; font-size: 1.05rem; letter-spacing: 0.01em; }
+
+.sidebar-link {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: var(--radius-full);
+    color: #d8d3ea;
+    font-size: 0.92rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+    cursor: pointer;
+}
+.sidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.sidebar-link.active { background: rgba(255,255,255,0.14); color: #fff; }
+.sidebar-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.sidebar-footer {
+    margin-top: auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 0.6rem 0.2rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 0.85rem;
+    color: #cfc9e6;
+}
+
+.main-content { flex: 1; padding: 1.75rem 2rem; max-width: 100%; overflow-x: hidden; }
+
+/* ---------- Cards / Surfaces ---------- */
+.card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+}
+
+.surface-input {
+    background: #f3f4f6;
+    color: #1f2937;
+    border-radius: 0.65rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid transparent;
+    width: 100%;
+    font-size: 0.92rem;
+}
+.surface-input::placeholder { color: #6b7280; }
+.surface-input:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+.dark-input {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 0.65rem;
+    padding: 0.6rem 0.9rem;
+    width: 100%;
+    font-size: 0.9rem;
+}
+.dark-input:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+label.field-label { font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: 0.3rem; display: block; }
+
+/* ---------- Buttons ---------- */
+.btn-primary {
+    background: linear-gradient(180deg, #4f8ef7, var(--color-primary-dark));
+    color: #fff;
+    font-weight: 600;
+    padding: 0.65rem 1.4rem;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+    font-size: 0.92rem;
+}
+.btn-primary:hover { box-shadow: 0 6px 18px -4px rgba(59,130,246,0.55); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-ghost {
+    background: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.btn-ghost:hover { color: var(--color-text); border-color: #4b4666; }
+
+.btn-danger-ghost {
+    background: transparent; color: var(--color-danger);
+    border: 1px solid rgba(239,68,68,0.4);
+    padding: 0.55rem 1.1rem; border-radius: 0.7rem; cursor: pointer; font-size: 0.88rem;
+}
+.btn-danger-ghost:hover { background: rgba(239,68,68,0.1); }
+
+.icon-btn {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--color-text-muted); padding: 0.35rem; border-radius: 0.5rem;
+}
+.icon-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+/* ---------- Badges ---------- */
+.badge {
+    display: inline-flex; align-items: center;
+    padding: 0.22rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #fff;
+}
+.badge-green  { background: #16a34a; }
+.badge-yellow { background: #ca8a04; color: #1f1300; }
+.badge-orange { background: #ea580c; }
+.badge-red    { background: #dc2626; }
+.badge-gray   { background: #4b5563; }
+
+/* ---------- Table ---------- */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.data-table thead th {
+    text-align: left;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--color-border);
+}
+.data-table tbody td { padding: 0.75rem 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+.data-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(5,3,15,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; padding: 1rem;
+}
+.modal-box {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    width: 100%; max-width: 520px;
+    padding: 1.75rem;
+    box-shadow: var(--shadow-card);
+}
+
+/* ---------- Alerts / toasts ---------- */
+.toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100;
+    padding: 0.85rem 1.25rem; border-radius: 0.75rem; font-size: 0.9rem;
+    color: #fff; box-shadow: var(--shadow-card);
+    animation: toast-in 0.2s ease;
+    max-width: 360px;
+}
+.toast-success { background: #15803d; }
+.toast-error   { background: #b91c1c; }
+@keyframes toast-in { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform: translateY(0);} }
+
+/* ---------- Empty / loading states ---------- */
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--color-text-muted); }
+.empty-state svg { width: 44px; height: 44px; margin: 0 auto 0.75rem; opacity: 0.6; }
+
+.spinner {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.25); border-top-color: #fff;
+    animation: spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Login ---------- */
+.login-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.login-card {
+    width: 100%; max-width: 380px;
+    background: rgba(20, 15, 35, 0.75);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1.75rem;
+    padding: 2.5rem 2.25rem;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(6px);
+}
+
+/* ---------- Menú móvil (hamburguesa) ---------- */
+.sidebar-toggle, .sidebar-close { display: none; }
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(5,3,15,0.6);
+    z-index: 40;
+}
+.sidebar-backdrop.visible { display: block; }
+
+@media (max-width: 900px) {
+    .app-shell { flex-direction: column; }
+
+    /* Botón hamburguesa fijo arriba a la izquierda */
+    .sidebar-toggle {
+        display: flex; align-items: center; justify-content: center;
+        position: fixed; top: 0.85rem; left: 0.85rem; z-index: 45;
+        width: 42px; height: 42px;
+        background: rgba(30,27,48,0.92);
+        border: 1px solid var(--color-border);
+        border-radius: 0.7rem;
+        color: var(--color-text);
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+    }
+    .sidebar-toggle svg { width: 20px; height: 20px; }
+
+    /* El sidebar se convierte en panel deslizable fuera de pantalla */
+    .sidebar {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        width: 265px;
+        z-index: 46;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        overflow-y: auto;
+        flex-direction: column;
+        padding: 1.5rem 1.15rem;
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .sidebar-close {
+        display: flex; align-items: center; justify-content: center;
+        margin-left: auto;
+        width: 30px; height: 30px;
+        background: transparent; border: none; cursor: pointer;
+        color: #d8d3ea; border-radius: 0.5rem;
+    }
+    .sidebar-close svg { width: 18px; height: 18px; }
+    .sidebar-footer { display: flex; }
+
+    /* Deja espacio arriba para que el botón no tape el título */
+    .main-content { padding: 4.25rem 1.1rem 1.5rem; }
+
+    /* Tablas con scroll horizontal propio en vez de romper el layout */
+    .data-table { font-size: 0.8rem; }
+    .card > div[id^="tabla"], .card > #tabla-equipos, .card > #tabla-usuarios {
+        overflow-x: auto;
+    }
+}
